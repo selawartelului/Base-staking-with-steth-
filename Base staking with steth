@@ -1,0 +1,59 @@
+
+ // SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
+contract StETHStaking is ReentrancyGuard {
+    using SafeERC20 for IERC20;
+
+    IERC20 public immutable stETH;
+
+    mapping(address => uint256) public stakedBalance;
+
+    event Staked(address indexed user, uint256 amount);
+    event Unstaked(address indexed user, uint256 amount);
+
+    constructor(address _stETH) {
+        require(_stETH != address(0), "Invalid token");
+        stETH = IERC20(_stETH);
+    }
+
+    function stake(uint256 amount) external nonReentrant {
+        require(amount > 0, "Amount must be positive");
+
+        stETH.safeTransferFrom(
+            msg.sender,
+            address(this),
+            amount
+        );
+
+        stakedBalance[msg.sender] += amount;
+
+        emit Staked(msg.sender, amount);
+    }
+
+    function unstake(uint256 amount) external nonReentrant {
+        require(amount > 0, "Amount must be positive");
+        require(
+            stakedBalance[msg.sender] >= amount,
+            "Insufficient balance"
+        );
+
+        stakedBalance[msg.sender] -= amount;
+
+        stETH.safeTransfer(msg.sender, amount);
+
+        emit Unstaked(msg.sender, amount);
+    }
+
+    function balanceOf(address user)
+        external
+        view
+        returns (uint256)
+    {
+        return stakedBalance[user];
+    }
+}
